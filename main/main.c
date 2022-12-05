@@ -13,8 +13,9 @@
 #include "esp_ble_mesh_provisioning_api.h"
 
 #include "ble_mesh_init.h"
+#include "led.h"
 
-#define TAG "EXAMPLE"
+#define TAG "NODE_LIGHT"
 
 #define CID_ESP 0x02E5
 
@@ -24,11 +25,7 @@ static esp_ble_mesh_cfg_srv_t config_server = {
     .relay = ESP_BLE_MESH_RELAY_DISABLED,
     .beacon = ESP_BLE_MESH_BEACON_ENABLED,
     .friend_state = ESP_BLE_MESH_FRIEND_NOT_SUPPORTED,
-#if defined(CONFIG_BLE_MESH_GATT_PROXY_SERVER)
     .gatt_proxy = ESP_BLE_MESH_GATT_PROXY_ENABLED,
-#else
-    .gatt_proxy = ESP_BLE_MESH_GATT_PROXY_NOT_SUPPORTED,
-#endif
     .default_ttl = 7,
     /* 3 transmissions with 20ms interval */
     .net_transmit = ESP_BLE_MESH_TRANSMIT(2, 20),
@@ -89,8 +86,8 @@ static void prov_complete(uint16_t net_idx, uint16_t addr, uint8_t flags, uint32
   ESP_LOGI(TAG, "flags: 0x%02x, iv_index: 0x%08x", flags, iv_index);
 }
 
-static void example_handle_gen_onoff_msg(esp_ble_mesh_model_t *model, esp_ble_mesh_msg_ctx_t *ctx,
-                                         esp_ble_mesh_server_recv_gen_onoff_set_t *set) {
+static void handle_gen_onoff_msg(esp_ble_mesh_model_t *model, esp_ble_mesh_msg_ctx_t *ctx,
+                                 esp_ble_mesh_server_recv_gen_onoff_set_t *set) {
   esp_ble_mesh_gen_onoff_srv_t *srv = model->user_data;
 
   switch (ctx->recv_op) {
@@ -118,7 +115,7 @@ static void example_handle_gen_onoff_msg(esp_ble_mesh_model_t *model, esp_ble_me
   }
 }
 
-static void example_ble_mesh_provisioning_cb(esp_ble_mesh_prov_cb_event_t event, esp_ble_mesh_prov_cb_param_t *param) {
+static void ble_mesh_provisioning_cb(esp_ble_mesh_prov_cb_event_t event, esp_ble_mesh_prov_cb_param_t *param) {
   switch (event) {
   case ESP_BLE_MESH_PROV_REGISTER_COMP_EVT:
     ESP_LOGI(TAG, "ESP_BLE_MESH_PROV_REGISTER_COMP_EVT, err_code %d", param->prov_register_comp.err_code);
@@ -151,8 +148,8 @@ static void example_ble_mesh_provisioning_cb(esp_ble_mesh_prov_cb_event_t event,
   }
 }
 
-static void example_ble_mesh_generic_server_cb(esp_ble_mesh_generic_server_cb_event_t event,
-                                               esp_ble_mesh_generic_server_cb_param_t *param) {
+static void ble_mesh_generic_server_cb(esp_ble_mesh_generic_server_cb_event_t event,
+                                       esp_ble_mesh_generic_server_cb_param_t *param) {
   esp_ble_mesh_gen_onoff_srv_t *srv;
   ESP_LOGI(TAG, "event 0x%02x, opcode 0x%04x, src 0x%04x, dst 0x%04x", event, param->ctx.recv_op, param->ctx.addr,
            param->ctx.recv_dst);
@@ -170,7 +167,7 @@ static void example_ble_mesh_generic_server_cb(esp_ble_mesh_generic_server_cb_ev
     if (param->ctx.recv_op == ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_GET) {
       srv = param->model->user_data;
       ESP_LOGI(TAG, "onoff 0x%02x", srv->state.onoff);
-      example_handle_gen_onoff_msg(param->model, &param->ctx, NULL);
+      handle_gen_onoff_msg(param->model, &param->ctx, NULL);
     }
     break;
   case ESP_BLE_MESH_GENERIC_SERVER_RECV_SET_MSG_EVT:
@@ -182,7 +179,7 @@ static void example_ble_mesh_generic_server_cb(esp_ble_mesh_generic_server_cb_ev
         ESP_LOGI(TAG, "trans_time 0x%02x, delay 0x%02x", param->value.set.onoff.trans_time,
                  param->value.set.onoff.delay);
       }
-      example_handle_gen_onoff_msg(param->model, &param->ctx, &param->value.set.onoff);
+      set_led(param->value.set.onoff.onoff ? LED_ON : LED_OFF);
     }
     break;
   default:
@@ -191,8 +188,8 @@ static void example_ble_mesh_generic_server_cb(esp_ble_mesh_generic_server_cb_ev
   }
 }
 
-static void example_ble_mesh_config_server_cb(esp_ble_mesh_cfg_server_cb_event_t event,
-                                              esp_ble_mesh_cfg_server_cb_param_t *param) {
+static void ble_mesh_config_server_cb(esp_ble_mesh_cfg_server_cb_event_t event,
+                                      esp_ble_mesh_cfg_server_cb_param_t *param) {
   if (event == ESP_BLE_MESH_CFG_SERVER_STATE_CHANGE_EVT) {
     switch (param->ctx.recv_op) {
     case ESP_BLE_MESH_MODEL_OP_APP_KEY_ADD:
@@ -218,7 +215,6 @@ static void example_ble_mesh_config_server_cb(esp_ble_mesh_cfg_server_cb_event_t
       ESP_LOGI(TAG, "elem_addr 0x%04x, del_addr 0x%04x, cid 0x%04x, mod_id 0x%04x",
                param->value.state_change.mod_sub_add.element_addr, param->value.state_change.mod_sub_add.sub_addr,
                param->value.state_change.mod_sub_add.company_id, param->value.state_change.mod_sub_add.model_id);
-
     default:
       break;
     }
@@ -228,9 +224,9 @@ static void example_ble_mesh_config_server_cb(esp_ble_mesh_cfg_server_cb_event_t
 static esp_err_t ble_mesh_init(void) {
   esp_err_t err = ESP_OK;
 
-  esp_ble_mesh_register_prov_callback(example_ble_mesh_provisioning_cb);
-  esp_ble_mesh_register_config_server_callback(example_ble_mesh_config_server_cb);
-  esp_ble_mesh_register_generic_server_callback(example_ble_mesh_generic_server_cb);
+  esp_ble_mesh_register_prov_callback(ble_mesh_provisioning_cb);
+  esp_ble_mesh_register_config_server_callback(ble_mesh_config_server_cb);
+  esp_ble_mesh_register_generic_server_callback(ble_mesh_generic_server_cb);
 
   err = esp_ble_mesh_init(&provision, &composition);
   if (err != ESP_OK) {
@@ -274,4 +270,6 @@ void app_main(void) {
   if (err) {
     ESP_LOGE(TAG, "Bluetooth mesh init failed (err %d)", err);
   }
+
+  configure_led();
 }
