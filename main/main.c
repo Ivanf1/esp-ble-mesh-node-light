@@ -12,6 +12,8 @@
 #include "esp_ble_mesh_networking_api.h"
 #include "esp_ble_mesh_provisioning_api.h"
 
+#include "esp_gatt_common_api.h"
+
 #include "ble_mesh_init.h"
 #include "led.h"
 
@@ -251,6 +253,8 @@ void app_main(void) {
   ESP_LOGI(TAG, "Initializing...");
 
   err = nvs_flash_init();
+  // nvs_flash_erase();
+  // err = nvs_flash_init();
   if (err == ESP_ERR_NVS_NO_FREE_PAGES) {
     ESP_ERROR_CHECK(nvs_flash_erase());
     err = nvs_flash_init();
@@ -270,6 +274,8 @@ void app_main(void) {
   if (err) {
     ESP_LOGE(TAG, "Bluetooth mesh init failed (err %d)", err);
   }
+
+  esp_ble_gatt_set_local_mtu(40);
 
   configure_led();
 }
