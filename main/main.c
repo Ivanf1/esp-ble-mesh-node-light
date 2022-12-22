@@ -101,9 +101,11 @@ static void handle_gen_onoff_msg(esp_ble_mesh_model_t *model, esp_ble_mesh_msg_c
   case ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_SET_UNACK:
     if (set->op_en == false) {
       srv->state.onoff = set->onoff;
+      set_led(set->onoff ? LED_ON : LED_OFF);
     } else {
       /* TODO: Delay and state transition */
       srv->state.onoff = set->onoff;
+      set_led(set->onoff ? LED_ON : LED_OFF);
     }
     if (ctx->recv_op == ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_SET) {
       esp_ble_mesh_server_model_send_msg(model, ctx, ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_STATUS, sizeof(srv->state.onoff),
@@ -181,7 +183,7 @@ static void ble_mesh_generic_server_cb(esp_ble_mesh_generic_server_cb_event_t ev
         ESP_LOGI(TAG, "trans_time 0x%02x, delay 0x%02x", param->value.set.onoff.trans_time,
                  param->value.set.onoff.delay);
       }
-      set_led(param->value.set.onoff.onoff ? LED_ON : LED_OFF);
+      handle_gen_onoff_msg(param->model, &param->ctx, &param->value.set.onoff);
     }
     break;
   default:
