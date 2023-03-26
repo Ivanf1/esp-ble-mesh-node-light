@@ -11,12 +11,14 @@
 
 static const char *TAG = "LED";
 
+TaskHandle_t blink_task;
+
 led_strip_t led_strip = {
     .type = LED_STRIP_WS2812,
     .length = NUM_LED,
     .gpio = LED_RING_DI_PIN,
     .buf = NULL,
-    .brightness = 10,
+    .brightness = 100,
 };
 
 static const rgb_t colors[] = {
@@ -35,3 +37,32 @@ void set_led(led_status_t status) {
   led_strip_fill(&led_strip, 0, NUM_LED, colors[status]);
   led_strip_flush(&led_strip);
 }
+
+void do_blink_led(void *pvParameters) {
+  led_strip_fill(&led_strip, 0, NUM_LED, colors[0]);
+  led_strip_flush(&led_strip);
+
+  vTaskDelay(100);
+
+  led_strip_fill(&led_strip, 0, NUM_LED, colors[1]);
+  led_strip_flush(&led_strip);
+
+  vTaskDelay(100);
+
+  led_strip_fill(&led_strip, 0, NUM_LED, colors[0]);
+  led_strip_flush(&led_strip);
+
+  vTaskDelay(100);
+
+  led_strip_fill(&led_strip, 0, NUM_LED, colors[1]);
+  led_strip_flush(&led_strip);
+
+  vTaskDelay(100);
+
+  led_strip_fill(&led_strip, 0, NUM_LED, colors[0]);
+  led_strip_flush(&led_strip);
+
+  vTaskDelete(NULL);
+}
+
+void blink_led(void) { xTaskCreate(do_blink_led, "blink", 2048, NULL, 3, &blink_task); }

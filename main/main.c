@@ -86,6 +86,7 @@ static esp_ble_mesh_prov_t provision = {
 static void prov_complete(uint16_t net_idx, uint16_t addr, uint8_t flags, uint32_t iv_index) {
   ESP_LOGI(TAG, "net_idx: 0x%04x, addr: 0x%04x", net_idx, addr);
   ESP_LOGI(TAG, "flags: 0x%02x, iv_index: 0x%08x", flags, iv_index);
+  blink_led();
 }
 
 static void handle_gen_onoff_msg(esp_ble_mesh_model_t *model, esp_ble_mesh_msg_ctx_t *ctx,
@@ -111,6 +112,9 @@ static void handle_gen_onoff_msg(esp_ble_mesh_model_t *model, esp_ble_mesh_msg_c
       esp_ble_mesh_server_model_send_msg(model, ctx, ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_STATUS, sizeof(srv->state.onoff),
                                          &srv->state.onoff);
     }
+
+    ESP_LOGI(TAG, "--------model publish address: %04x", model->pub->publish_addr);
+
     esp_ble_mesh_model_publish(model, ESP_BLE_MESH_MODEL_OP_GEN_ONOFF_STATUS, sizeof(srv->state.onoff),
                                &srv->state.onoff, ROLE_NODE);
     break;
@@ -214,6 +218,12 @@ static void ble_mesh_config_server_cb(esp_ble_mesh_cfg_server_cb_event_t event,
                param->value.state_change.mod_sub_add.element_addr, param->value.state_change.mod_sub_add.sub_addr,
                param->value.state_change.mod_sub_add.company_id, param->value.state_change.mod_sub_add.model_id);
       break;
+    case ESP_BLE_MESH_MODEL_OP_MODEL_PUB_SET:
+      ESP_LOGI(TAG, "ESP_BLE_MESH_MODEL_OP_MODEL_PUB_SET");
+      ESP_LOGI(TAG, "elem_addr 0x%04x, sub_addr 0x%04x, cid 0x%04x, mod_id 0x%04x",
+               param->value.state_change.mod_sub_add.element_addr, param->value.state_change.mod_sub_add.sub_addr,
+               param->value.state_change.mod_sub_add.company_id, param->value.state_change.mod_sub_add.model_id);
+      break;
     case ESP_BLE_MESH_MODEL_OP_MODEL_SUB_DELETE:
       ESP_LOGI(TAG, "ESP_BLE_MESH_MODEL_OP_MODEL_SUB_DELETE");
       ESP_LOGI(TAG, "elem_addr 0x%04x, del_addr 0x%04x, cid 0x%04x, mod_id 0x%04x",
@@ -254,9 +264,9 @@ void app_main(void) {
 
   ESP_LOGI(TAG, "Initializing...");
 
-  err = nvs_flash_init();
-  // nvs_flash_erase();
   // err = nvs_flash_init();
+  // nvs_flash_erase();
+  err = nvs_flash_init();
   if (err == ESP_ERR_NVS_NO_FREE_PAGES) {
     ESP_ERROR_CHECK(nvs_flash_erase());
     err = nvs_flash_init();
@@ -277,7 +287,7 @@ void app_main(void) {
     ESP_LOGE(TAG, "Bluetooth mesh init failed (err %d)", err);
   }
 
-  esp_ble_gatt_set_local_mtu(40);
+  esp_ble_gatt_set_local_mtu(200);
 
   configure_led();
 }
